@@ -2,17 +2,27 @@
 
 import { UserButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import React, { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+
+interface Video {
+  title: string;
+  description?: string;
+  url?: string;
+  thumbnail: string;
+  views?: number;
+  likes?: number;
+}
 
 export default function Home() {
   const { isSignedIn } = useUser();
   const [niche, setNiche] = useState("");
-  const [videos, setVideos] = useState<any[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [script, setScript] = useState("");
   const [generating, setGenerating] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
-  const [showPlanPopup, setShowPlanPopup] = useState(false); // popup plano pago
 
   const formatNumber = (num: number) => {
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -20,7 +30,7 @@ export default function Home() {
     return num.toString();
   };
 
-  const searchVideos = async (e: React.FormEvent) => {
+  const searchVideos = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!isSignedIn) {
@@ -38,7 +48,6 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (res.status === 403) setShowPlanPopup(true); // abre popup plano
         alert(data.error || "Erro ao buscar vídeos.");
         setRemaining(data.remaining ?? 0);
         setLoading(false);
@@ -72,7 +81,8 @@ export default function Home() {
       });
 
       const data = await res.json();
-      setScript(data.script || "Erro ao gerar roteiro.");
+      if (data.script) setScript(data.script);
+      else setScript("Erro ao gerar roteiro.");
     } catch (error) {
       console.error(error);
       setScript("Erro ao gerar roteiro.");
@@ -95,12 +105,12 @@ export default function Home() {
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
           <SignedOut>
-            <a
+            <Link
               href="/sign-in"
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
               Entrar
-            </a>
+            </Link>
           </SignedOut>
         </div>
       </header>
@@ -155,7 +165,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* VIDEOS GRID */}
+      {/* VIDEOS */}
       <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-6xl">
         {videos.length === 0 && !loading && (
           <p className="text-gray-500 text-center col-span-full">
@@ -169,11 +179,14 @@ export default function Home() {
             onClick={() => setSelectedVideo(video)}
             className="bg-white rounded-xl shadow hover:shadow-lg cursor-pointer transition overflow-hidden flex flex-col"
           >
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              className="w-full h-48 object-cover"
-            />
+            <div className="relative w-full h-48">
+              <Image
+                src={video.thumbnail}
+                alt={video.title}
+                fill
+                className="object-cover"
+              />
+            </div>
             <div className="p-4 flex-1 flex flex-col justify-between">
               <h2 className="text-lg font-semibold line-clamp-2 mb-2">
                 {video.title}
@@ -187,7 +200,7 @@ export default function Home() {
         ))}
       </section>
 
-      {/* MODAL VÍDEO */}
+      {/* MODAL */}
       {selectedVideo && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 relative shadow-lg overflow-y-auto max-h-[90vh]">
@@ -211,14 +224,17 @@ export default function Home() {
                   title={selectedVideo.title}
                   className="absolute top-0 left-0 w-full h-full rounded-lg"
                   allowFullScreen
-                />
+                ></iframe>
               </div>
             ) : (
-              <img
-                src={selectedVideo.thumbnail}
-                alt={selectedVideo.title}
-                className="w-full h-64 object-cover rounded-lg mb-4"
-              />
+              <div className="relative w-full h-64 mb-4">
+                <Image
+                  src={selectedVideo.thumbnail}
+                  alt={selectedVideo.title}
+                  fill
+                  className="object-cover rounded-lg"
+                />
+              </div>
             )}
 
             <p className="text-gray-700 mb-4">
@@ -246,50 +262,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* MODAL PLANO PAGO */}
-{showPlanPopup && (
-  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm px-4">
-    <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md w-full animate-fadeIn">
-      <h2 className="text-3xl font-extrabold text-gray-900 mb-3">
-        🚀 Continue com acesso ilimitado
-      </h2>
-
-      <p className="text-gray-600 mb-6">
-        Você atingiu o limite de <strong>3 pesquisas gratuitas</strong>.
-        Para continuar explorando os vídeos mais virais e gerar roteiros com IA,
-        desbloqueie o <strong>plano PRO</strong> abaixo.
-      </p>
-
-      <div className="border border-blue-200 rounded-xl p-6 bg-gradient-to-b from-blue-50 to-white mb-6">
-        <h3 className="text-2xl font-semibold text-blue-700 mb-2">
-          💎 Plano PRO
-        </h3>
-        <p className="text-gray-700 mb-4">Acesso ilimitado a:</p>
-        <ul className="text-gray-600 text-left mb-4 list-disc list-inside space-y-1">
-          <li>Pesquisas ilimitadas por nicho</li>
-          <li>Geração de roteiros otimizados por IA</li>
-          <li>Suporte prioritário</li>
-        </ul>
-        <p className="text-3xl font-bold text-blue-700 mb-6">R$29/mês</p>
-
-        <button
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition w-full"
-          onClick={() => alert("🔗 Link de pagamento será adicionado aqui")}
-        >
-          Adquirir plano
-        </button>
-      </div>
-
-      <button
-        onClick={() => setShowPlanPopup(false)}
-        className="text-gray-500 hover:text-gray-700 underline text-sm"
-      >
-        Voltar
-      </button>
-    </div>
-  </div>
-)}
-</main>
+    </main>
   );
 }
