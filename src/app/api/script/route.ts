@@ -5,9 +5,14 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+interface ScriptRequestBody {
+  title: string;
+  description?: string;
+}
+
 export async function POST(req: Request) {
   try {
-    const { title, description } = await req.json();
+    const { title, description } = (await req.json()) as ScriptRequestBody;
 
     if (!title) {
       return NextResponse.json({ error: "Título ausente." }, { status: 400 });
@@ -49,7 +54,8 @@ Gere o roteiro agora com formatação organizada e estilo viral, sem texto desne
       messages: [
         {
           role: "system",
-          content: "Você é um roteirista criativo especialista em transformar vídeos comuns em virais curtos e envolventes.",
+          content:
+            "Você é um roteirista criativo especialista em transformar vídeos comuns em virais curtos e envolventes.",
         },
         { role: "user", content: prompt },
       ],
@@ -62,8 +68,12 @@ Gere o roteiro agora com formatação organizada e estilo viral, sem texto desne
       "❌ Não foi possível gerar o roteiro. Tente novamente.";
 
     return NextResponse.json({ script });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erro ao gerar roteiro:", error);
-    return NextResponse.json({ error: "Erro interno ao gerar roteiro." }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      { error: "Erro interno ao gerar roteiro.", message },
+      { status: 500 }
+    );
   }
 }

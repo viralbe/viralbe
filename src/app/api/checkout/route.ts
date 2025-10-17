@@ -3,7 +3,7 @@ import { currentUser } from "@clerk/nextjs/server"; // <- IMPORT ESSENCIAL
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 
-export const runtime = "nodejs"; // opcional, garante runtime compatível
+export const runtime = "nodejs"; // garante runtime compatível
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-09-30.clover",
@@ -85,12 +85,15 @@ export async function POST(req: Request) {
 
     console.log("✅ Sessão criada:", session.id);
     return new Response(JSON.stringify({ url: session.url }), { status: 200 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("❌ ERRO DETALHADO NO CHECKOUT:", err);
+
+    const message = err instanceof Error ? err.message : "Erro interno ao iniciar checkout.";
+
     return new Response(
       JSON.stringify({
         error: "checkout_failed",
-        message: err?.message || "Erro interno ao iniciar checkout.",
+        message,
       }),
       { status: 500 }
     );

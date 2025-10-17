@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     if (!isPro && userSearch.searches >= 3) {
       return NextResponse.json({
         ok: false,
-        needsUpgrade: true, // <- sinaliza para o frontend abrir modal Stripe
+        needsUpgrade: true,
         remaining: 0,
         isPro: false,
       });
@@ -68,10 +68,12 @@ export async function GET(req: Request) {
       isPro,
       needsUpgrade: false,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao buscar vídeos:", error);
+    const message = error instanceof Error ? error.message : String(error);
+
     return NextResponse.json(
-      { ok: false, error: "internal_error", message: "Erro interno ao buscar vídeos." },
+      { ok: false, error: "internal_error", message },
       { status: 500 }
     );
   }
