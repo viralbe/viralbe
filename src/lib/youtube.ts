@@ -23,13 +23,13 @@ interface YouTubeStatsItem {
   statistics: { viewCount?: string; likeCount?: string };
 }
 
-// Type guards
+// Type guards sem 'any'
 function isYouTubeSearchItem(item: unknown): item is YouTubeSearchItem {
   return (
     typeof item === "object" &&
     item !== null &&
     "id" in item &&
-    typeof (item as any).id?.videoId === "string"
+    typeof (item as { id?: { videoId?: unknown } }).id?.videoId === "string"
   );
 }
 
@@ -47,6 +47,7 @@ export async function fetchYoutubeVideos(niche: string): Promise<YouTubeVideo[]>
   const API_KEY = process.env.YOUTUBE_API_KEY;
   if (!API_KEY) throw new Error("YouTube API key não encontrada.");
 
+  // 1️⃣ Busca vídeos pelo termo
   const searchRes = await fetch(
     `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
       niche
@@ -57,11 +58,11 @@ export async function fetchYoutubeVideos(niche: string): Promise<YouTubeVideo[]>
   if (!searchData?.items || !Array.isArray(searchData.items)) return [];
 
   const searchItems: YouTubeSearchItem[] = searchData.items.filter(isYouTubeSearchItem);
-
   if (searchItems.length === 0) return [];
 
-  const videoIds = searchItems.map((item: YouTubeSearchItem) => item.id.videoId).join(",");
+  const videoIds = searchItems.map((item) => item.id.videoId).join(",");
 
+  // 2️⃣ Pega estatísticas dos vídeos
   const statsRes = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}&key=${API_KEY}`
   );
@@ -71,7 +72,8 @@ export async function fetchYoutubeVideos(niche: string): Promise<YouTubeVideo[]>
 
   const statsItems: YouTubeStatsItem[] = statsData.items.filter(isYouTubeStatsItem);
 
-  const videos: YouTubeVideo[] = statsItems.map((item: YouTubeStatsItem) => ({
+  // 3️⃣ Monta os objetos finais
+  const videos: YouTubeVideo[] = statsItems.map((item) => ({
     id: item.id,
     title: item.snippet.title,
     description: item.snippet.description,

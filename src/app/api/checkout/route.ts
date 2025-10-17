@@ -1,5 +1,5 @@
 // src/app/api/checkout/route.ts
-import { currentUser } from "@clerk/nextjs/server"; // <- IMPORT ESSENCIAL
+import { currentUser } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 
@@ -13,7 +13,6 @@ export async function POST(req: Request) {
   try {
     console.log("🟡 Iniciando checkout...");
 
-    // 🔒 currentUser vem do Clerk (server)
     const user = await currentUser();
     console.log("🟢 Usuário:", user?.id);
 
@@ -27,12 +26,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body: unknown = await req.json().catch(() => ({}));
     console.log("📦 Body recebido:", body);
 
     const priceId = process.env.STRIPE_PRICE_ID;
-    console.log("💰 STRIPE_PRICE_ID:", priceId);
-
     if (!priceId) {
       console.error("❌ STRIPE_PRICE_ID não configurado");
       return new Response(
@@ -49,7 +46,7 @@ export async function POST(req: Request) {
       where: { userId: user.id },
     });
 
-    let customerId: string | undefined;
+    let customerId: string;
     if (existing?.stripeCustomer) {
       console.log("🟢 Já existe customer:", existing.stripeCustomer);
       customerId = existing.stripeCustomer;
