@@ -1,6 +1,17 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
 model UserSearch {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  searches  Int      @default(0)
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  searches        Int      @default(0)
+  isPro           Boolean  @default(false)     // novo: se usuário é pro (assinante)
+  stripeCustomer  String?                       // opcional: armazenar stripe customer id
+  createdAt       DateTime @default(now())
 }

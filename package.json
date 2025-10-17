@@ -13,6 +13,7 @@
     "@google/genai": "^1.24.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.17.1",
+    "@types/stripe": "^8.0.416",
     "axios": "^1.12.2",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.545.0",
@@ -20,7 +21,8 @@
     "openai": "^6.3.0",
     "prisma": "^6.17.1",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "stripe": "^19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -4,6 +4,7 @@ import { UserButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import UpgradeModal from "@/components/UpgradeModal";
 
 interface Video {
   title: string;
@@ -22,7 +23,9 @@ export default function Home() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [script, setScript] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | string | null>(null);
+  const [isPro, setIsPro] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const formatNumber = (num: number) => {
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -42,20 +45,29 @@ export default function Home() {
 
     setLoading(true);
     setVideos([]);
+    setShowUpgrade(false);
 
     try {
       const res = await fetch(`/api/videos?niche=${encodeURIComponent(niche)}`);
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Erro ao buscar vídeos.");
-        setRemaining(data.remaining ?? 0);
+        if (data.error === "limit_reached") {
+          // Usuário atingiu o limite → abre modal de upgrade
+          setShowUpgrade(true);
+          setRemaining(0);
+          setIsPro(false);
+        } else {
+          alert(data.message || "Erro ao buscar vídeos.");
+        }
         setLoading(false);
         return;
       }
 
+      // Usuário autorizado ou Pro
       setVideos(data.videos || []);
       setRemaining(data.remaining ?? null);
+      setIsPro(data.isPro ?? false);
     } catch (error) {
       console.error(error);
       alert("Erro ao se conectar ao servidor.");
@@ -81,8 +93,7 @@ export default function Home() {
       });
 
       const data = await res.json();
-      if (data.script) setScript(data.script);
-      else setScript("Erro ao gerar roteiro.");
+      setScript(data.script || "Erro ao gerar roteiro.");
     } catch (error) {
       console.error(error);
       setScript("Erro ao gerar roteiro.");
@@ -154,13 +165,17 @@ export default function Home() {
               <span className="text-2xl">🔎</span>
               <span>
                 Você ainda tem{" "}
-                <span className="font-extrabold text-blue-700">{remaining}</span>{" "}
+                <span className="font-extrabold text-blue-700">
+                  {isPro ? "∞" : remaining}
+                </span>{" "}
                 de <span className="font-bold">3 buscas grátis</span>.
               </span>
             </p>
-            <p className="text-sm text-blue-600 mt-1">
-              Aproveite bem! Cada busca revela os vídeos mais virais do seu nicho. 💡
-            </p>
+            {!isPro && (
+              <p className="text-sm text-blue-600 mt-1">
+                Aproveite bem! Cada busca revela os vídeos mais virais do seu nicho. 💡
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -200,7 +215,7 @@ export default function Home() {
         ))}
       </section>
 
-      {/* MODAL */}
+      {/* MODAL DE VÍDEO */}
       {selectedVideo && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 relative shadow-lg overflow-y-auto max-h-[90vh]">
@@ -262,6 +277,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE UPGRADE */}
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
     </main>
   );
 }

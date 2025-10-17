@@ -1,63 +1,80 @@
-import { createClerkClient } from "@clerk/backend";
+import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { fetchYoutubeVideos } from "@/lib/youtube";
-
-const clerkClient = createClerkClient({
-  secretKey: process.env.CLERK_SECRET_KEY!,
-});
+import prisma from "@/lib/prisma";
+import { fetchYoutubeVideos, YouTubeVideo } from "@/lib/youtube";
 
 export async function GET(req: Request) {
   try {
     const user = await currentUser();
 
-    if (!user || !user.id) {
-      return new Response(
-        JSON.stringify({ error: "Usuário não autenticado." }),
+    // 🔒 Verifica autenticação
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "unauthorized", message: "Usuário não autenticado." },
         { status: 401 }
       );
     }
 
-    // Lê o limite de pesquisas do usuário
-    const remaining =
-      typeof user.publicMetadata.remainingSearches === "number"
-        ? user.publicMetadata.remainingSearches
-        : 3;
+    const url = new URL(req.url);
+    const niche = url.searchParams.get("niche")?.trim();
 
-    if (remaining <= 0) {
-      return new Response(
-        JSON.stringify({
-          error: "Você atingiu o limite de 3 pesquisas gratuitas.",
-          remaining: 0,
-        }),
+    if (!niche) {
+      return NextResponse.json(
+        { ok: false, error: "missing_niche", message: "Nicho não informado." },
+        { status: 400 }
+      );
+    }
+
+    // 🔍 Busca ou cria o registro do usuário no banco
+    let userSearch = await prisma.userSearch.findFirst({
+      where: { userId: user.id },
+    });
+
+    if (!userSearch) {
+      userSearch = await prisma.userSearch.create({
+        data: { userId: user.id, searches: 0, isPro: false },
+      });
+    }
+
+    // 💎 Verifica plano Pro
+    const isPro = userSearch.isPro === true;
+
+    // 🔢 Se não for Pro, aplica limite de 3 buscas
+    if (!isPro && userSearch.searches >= 3) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "limit_reached",
+          message: "Limite de 3 buscas gratuitas atingido. Faça upgrade para continuar.",
+          isPro: false,
+        },
         { status: 403 }
       );
     }
 
-    // Obtém o nicho da query string
-    const { searchParams } = new URL(req.url);
-    const niche = searchParams.get("niche") || "marketing";
+    // 🧮 Incrementa o contador se for usuário gratuito
+    if (!isPro) {
+      await prisma.userSearch.update({
+        where: { id: userSearch.id },
+        data: { searches: userSearch.searches + 1 },
+      });
+    }
 
-    // Chama a função que busca vídeos do YouTube
-    const videos = await fetchYoutubeVideos(niche);
+    // 🎥 Busca os vídeos (mock ou real API do YouTube)
+    const videos: YouTubeVideo[] = await fetchYoutubeVideos(niche);
 
-    const updatedRemaining = remaining - 1;
-
-    // Atualiza metadados do usuário no Clerk
-    await clerkClient.users.updateUserMetadata(user.id, {
-      publicMetadata: {
-        ...(user.publicMetadata || {}),
-        remainingSearches: updatedRemaining,
-      },
+    // 🔁 Retorno padronizado
+    return NextResponse.json({
+      ok: true,
+      videos,
+      remaining: isPro ? "∞" : Math.max(0, 3 - (userSearch.searches + 1)),
+      isPro,
     });
-
-    return new Response(
-      JSON.stringify({ videos, remaining: updatedRemaining }),
-      { status: 200 }
+  } catch (error: any) {
+    console.error("Erro ao buscar vídeos:", error);
+    return NextResponse.json(
+      { ok: false, error: "internal_error", message: "Erro interno ao buscar vídeos." },
+      { status: 500 }
     );
-  } catch (error) {
-    console.error("Erro na rota /api/videos:", error);
-    return new Response(JSON.stringify({ error: "Erro interno." }), {
-      status: 500,
-    });
   }
 }
