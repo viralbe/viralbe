@@ -1,3 +1,4 @@
+// src/app/api/videos/route.ts
 import { NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
@@ -26,45 +27,42 @@ export async function GET(req: Request) {
     }
 
     // 🔍 Busca ou cria o registro do usuário no banco
-    let userSearch = await prisma.userSearch.findFirst({
-      where: { userId: user.id },
-    });
-
+    let userSearch = await prisma.userSearch.findFirst({ where: { userId: user.id } });
     if (!userSearch) {
       userSearch = await prisma.userSearch.create({
         data: { userId: user.id, searches: 0, isPro: false },
       });
     }
 
-    // 💎 Verifica plano Pro
     const isPro = userSearch.isPro === true;
+    const remaining = isPro ? Infinity : 3 - userSearch.searches;
 
-    // 🔢 Se não for Pro e já atingiu limite, retorna flag para upgrade
-    if (!isPro && userSearch.searches >= 3) {
-      return NextResponse.json({
-        ok: false,
-        needsUpgrade: true,
-        remaining: 0,
-        isPro: false,
-      });
-    }
+    // 🔢 Se não for Pro e já zerou tentativas, retorna flag para upgrade
+    if (!isPro && remaining <= 0) {
+  return NextResponse.json({
+    ok: false,
+    needsUpgrade: true,
+    remaining: 0,
+    isPro: false,
+  });
+}
 
-    // 🧮 Incrementa o contador se for usuário gratuito
-    if (!isPro) {
-      await prisma.userSearch.update({
-        where: { id: userSearch.id },
-        data: { searches: userSearch.searches + 1 },
-      });
-    }
+// Incrementa contador só depois
+if (!isPro) {
+  await prisma.userSearch.update({
+    where: { id: userSearch.id },
+    data: { searches: userSearch.searches + 1 },
+  });
+}
 
-    // 🎥 Busca os vídeos (mock ou real API do YouTube)
+    // 🎥 Busca vídeos
     const videos: YouTubeVideo[] = await fetchYoutubeVideos(niche);
 
     // 🔁 Retorno padronizado
     return NextResponse.json({
       ok: true,
       videos,
-      remaining: isPro ? "∞" : Math.max(0, 3 - (userSearch.searches + 1)),
+      remaining: isPro ? "∞" : remaining - 1, // decrementa pois o contador subiu
       isPro,
       needsUpgrade: false,
     });

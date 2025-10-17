@@ -68,6 +68,9 @@ export async function POST(req: Request) {
     }
 
     console.log("🧾 Criando sessão de checkout...");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL não configurado");
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -75,8 +78,8 @@ export async function POST(req: Request) {
       discounts: process.env.STRIPE_FIRST_COUPON_ID
         ? [{ coupon: process.env.STRIPE_FIRST_COUPON_ID }]
         : undefined,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
+      success_url: `${appUrl}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/`,
       metadata: { userId: user.id },
     });
 
@@ -85,7 +88,8 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     console.error("❌ ERRO DETALHADO NO CHECKOUT:", err);
 
-    const message = err instanceof Error ? err.message : "Erro interno ao iniciar checkout.";
+    const message =
+      err instanceof Error ? err.message : "Erro interno ao iniciar checkout.";
 
     return new Response(
       JSON.stringify({

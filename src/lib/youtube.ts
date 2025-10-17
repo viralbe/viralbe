@@ -51,7 +51,7 @@ export async function fetchYoutubeVideos(niche: string): Promise<YouTubeVideo[]>
   const searchRes = await fetch(
     `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
       niche
-    )}&type=video&maxResults=10&key=${API_KEY}`
+    )}&type=video&maxResults=15&key=${API_KEY}`
   );
   const searchData = await searchRes.json();
 
