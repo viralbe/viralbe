@@ -39,17 +39,14 @@ export async function GET(req: Request) {
     // 💎 Verifica plano Pro
     const isPro = userSearch.isPro === true;
 
-    // 🔢 Se não for Pro, aplica limite de 3 buscas
+    // 🔢 Se não for Pro e já atingiu limite, retorna flag para upgrade
     if (!isPro && userSearch.searches >= 3) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "limit_reached",
-          message: "Limite de 3 buscas gratuitas atingido. Faça upgrade para continuar.",
-          isPro: false,
-        },
-        { status: 403 }
-      );
+      return NextResponse.json({
+        ok: false,
+        needsUpgrade: true, // <- sinaliza para o frontend abrir modal Stripe
+        remaining: 0,
+        isPro: false,
+      });
     }
 
     // 🧮 Incrementa o contador se for usuário gratuito
@@ -69,6 +66,7 @@ export async function GET(req: Request) {
       videos,
       remaining: isPro ? "∞" : Math.max(0, 3 - (userSearch.searches + 1)),
       isPro,
+      needsUpgrade: false,
     });
   } catch (error: any) {
     console.error("Erro ao buscar vídeos:", error);
