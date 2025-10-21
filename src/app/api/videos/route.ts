@@ -34,6 +34,16 @@ export async function GET(req: Request) {
       });
     }
 
+    // se o e-mail for o admin, pula o limite
+const adminEmail = "viralbeai@gmail.com"; // 👈 coloque aqui o e-mail que quer liberar
+if (user.emailAddresses?.[0]?.emailAddress === adminEmail) {
+  const videos: YouTubeVideo[] = await fetchYoutubeVideos(niche);
+  return NextResponse.json({
+    videos,
+    remaining: "∞", // infinito pro admin
+  });
+}
+
     const isPro = userSearch.isPro === true;
     const remaining = isPro ? Infinity : 3 - userSearch.searches;
 
