@@ -19,48 +19,68 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-Você é um roteirista profissional de vídeos curtos (Reels, Shorts, TikTok).
-Crie um roteiro **bem estruturado em tópicos**, com linguagem natural e emocional, baseado neste vídeo:
+Você é um **roteirista profissional e copywriter sênior** especializado em vídeos curtos virais (Reels, Shorts e TikToks).
+Seu estilo combina **storytelling + gatilhos mentais + linguagem emocional e natural**.
+
+Baseie-se no vídeo abaixo e **reescreva o conceito em formato de roteiro envolvente**:
 
 🎬 **Título:** ${title}
 📖 **Descrição:** ${description || "Sem descrição disponível."}
 
-Regras:
-- Use português natural, envolvente e fácil de entender.
-- Crie um **gancho forte nos primeiros 3 segundos**.
-- Desenvolva o conteúdo em **tópicos curtos e objetivos**.
-- Finalize com um **encerramento criativo ou CTA leve**.
-- Evite marcações como "CUT", "Cena", "Narrador" etc.
-- Estruture exatamente assim:
+---
+🧠 Diretrizes:
+- Linguagem 100% natural e emocional, como se estivesse falando com o público, não escrevendo.
+- Gere curiosidade logo no início (ex: perguntas, promessas ou frases polêmicas).
+- Use **ritmo rápido, frases curtas e impacto em cada linha**.
+- Utilize **gatilhos mentais** como: curiosidade, prova, autoridade, exclusividade, urgência, identificação.
+- Nunca soe robótico, vendedor demais ou repetitivo.
+- Finalize com uma **reflexão, provocação ou CTA leve e humano** (“me conta aí”, “já passou por isso?”, etc.).
+- O tom deve ser **autêntico, direto e com energia de vídeo viral**.
 
 ---
-🎯 **Gancho (0–3s)**
-• Frase inicial que desperta curiosidade imediata.
+📄 **Formato Exato:**
 
-💡 **Conteúdo (4–25s)**
-• Liste as ideias principais em tópicos curtos e impactantes.  
-• Mostre o raciocínio passo a passo, sem enrolação.  
-• Mantenha ritmo rápido e fluido.
+🎯 **Gancho (0–3s)**  
+• Frase inicial que prende atenção, gera curiosidade ou causa identificação imediata.  
 
-🔥 **Encerramento / CTA (26–35s)**
-• Feche com uma reflexão, desafio, ou convite para seguir / comentar.
+💡 **Conteúdo (4–25s)**  
+• Liste 3 a 5 ideias curtas, diretas e com fluidez natural.  
+• Use exemplos, micro-histórias ou frases de impacto.  
+• Mantenha o público curioso até o final.  
+
+🔥 **Encerramento / CTA (26–35s)**  
+• Feche com uma reflexão, desafio, ou convite leve à ação.  
+
 ---
+💬 **Exemplo de estilo:**
 
-Gere o roteiro agora com formatação organizada e estilo viral, sem texto desnecessário.
+🎯 Gancho  
+• "Tem uma coisa que quase ninguém te conta sobre crescer na internet..."  
+
+💡 Conteúdo  
+• A maioria acha que é sorte, mas é consistência disfarçada.  
+• Você posta 10 vezes, ninguém liga. Na 11ª, estoura.  
+• Só que quase ninguém chega até a 11ª.  
+
+🔥 Encerramento  
+• Então, se quer viralizar, para de desistir no 10.  
+
+---
+Agora gere o roteiro com esse mesmo nível de naturalidade e impacto, adaptado ao tema acima.
 `;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content:
-            "Você é um roteirista criativo especialista em transformar vídeos comuns em virais curtos e envolventes.",
+            "Você é um roteirista e copywriter profissional especializado em vídeos curtos virais. Sua escrita é humana, emocional e orientada à performance.",
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.85,
-      max_tokens: 450,
+      temperature: 0.9, // mais criatividade
+      max_tokens: 600, // mais espaço pra nuances
     });
 
     const script =
