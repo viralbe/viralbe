@@ -1,7 +1,7 @@
 "use client";
 
 import { UserButton, SignedIn, SignedOut, useUser } from "@clerk/nextjs";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -16,7 +16,7 @@ interface Video {
 }
 
 export default function Home() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
   const [niche, setNiche] = useState("");
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,6 +25,7 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [remaining, setRemaining] = useState<number | string | null>(null);
   const [isPro, setIsPro] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
   const formatNumber = (num: number) => {
@@ -32,6 +33,28 @@ export default function Home() {
     if (num >= 1_000) return (num / 1_000).toFixed(1) + "K";
     return num.toString();
   };
+
+  useEffect(() => {
+    const checkProStatus = async () => {
+      if (!isSignedIn) return;
+      try {
+        const res = await fetch("/api/check-pro");
+        const data = await res.json();
+        setIsPro(data.isPro ?? false);
+
+        const adminEmail = "viralbeai@gmail.com";
+        setIsAdmin(user?.emailAddresses?.[0]?.emailAddress === adminEmail);
+
+        if (!data.isPro && user?.emailAddresses?.[0]?.emailAddress !== adminEmail) {
+          const rem = Number(data.remaining ?? 3);
+          setRemaining(rem < 0 ? 0 : rem);
+        }
+      } catch (err) {
+        console.error("Erro ao verificar status Pro:", err);
+      }
+    };
+    checkProStatus();
+  }, [isSignedIn, user]);
 
   const searchVideos = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -46,16 +69,20 @@ export default function Home() {
       const data = await res.json();
 
       if (!res.ok || data.needsUpgrade) {
-        setShowUpgrade(data.needsUpgrade ?? false);
-        setRemaining(data.remaining ?? 0);
-        setIsPro(data.isPro ?? false);
+        if (!isPro && !isAdmin) {
+          setShowUpgrade(data.needsUpgrade ?? false);
+          const rem = Number(data.remaining ?? 0);
+          setRemaining(rem < 0 ? 0 : rem);
+        }
         setLoading(false);
         return;
       }
 
       setVideos(data.videos || []);
-      setRemaining(data.remaining ?? null);
-      setIsPro(data.isPro ?? false);
+      if (!isPro && !isAdmin) {
+        const rem = Number(data.remaining ?? remaining);
+        setRemaining(rem < 0 ? 0 : rem);
+      }
     } catch (error) {
       console.error(error);
       alert("Erro ao se conectar ao servidor.");
@@ -91,85 +118,93 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-white to-gray-50 text-gray-900 flex flex-col items-center px-6 py-10">
+    <main className="min-h-screen bg-gradient-to-b from-blue-100 via-white to-blue-50 text-gray-900 flex flex-col items-center px-6 py-10 transition-all duration-500">
       {/* HEADER */}
-      <header className="w-full max-w-6xl flex justify-end items-center mb-8">
-        <div>
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-          <SignedOut>
-            <Link
-              href="/sign-in"
-              className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-2 rounded-xl hover:from-blue-700 hover:to-blue-600 transition"
-            >
-              Entrar
-            </Link>
-          </SignedOut>
-        </div>
+      <header className="w-full max-w-6xl flex justify-end items-center mb-8 gap-4">
+        {(isPro || isAdmin) && (
+          <span className={`px-4 py-2 font-bold rounded-full text-white ${isAdmin ? "bg-red-600" : "bg-blue-700"}`}>
+            {isAdmin ? "ADM" : "PRO"}
+          </span>
+        )}
+        <SignedIn>
+          <UserButton afterSignOutUrl="/" />
+        </SignedIn>
+        <SignedOut>
+          <Link
+            href="/sign-in"
+            className="bg-blue-700 text-white px-5 py-2 rounded-xl hover:bg-blue-800 transition"
+          >
+            Entrar
+          </Link>
+        </SignedOut>
       </header>
 
       {/* HERO */}
       <section className="w-full max-w-4xl text-center mb-10">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-blue-900 leading-tight mb-4 animate-fadeIn">
           🌍 Os vídeos mais virais do mundo na sua mão
         </h1>
-        <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+        <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto animate-fadeIn delay-200">
           Encontre os vídeos mais virais do momento e deixe a IA recriar o seu automaticamente com roteiros otimizados.
         </p>
       </section>
 
       {/* SEARCH */}
-      <form onSubmit={searchVideos} className="flex flex-col sm:flex-row gap-3 w-full max-w-md mb-6">
+      <form
+        onSubmit={searchVideos}
+        className="flex flex-col sm:flex-row gap-3 w-full max-w-md mb-6 animate-fadeIn delay-400"
+      >
         <input
           type="text"
           placeholder="Digite um nicho (ex: marketing, moda, humor...)"
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          className="flex-1 border border-gray-300 rounded-2xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+          className="flex-1 border border-gray-300 rounded-3xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition"
         />
         <button
           type="submit"
           disabled={loading}
-          className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-3 rounded-2xl hover:from-blue-700 hover:to-blue-600 transition disabled:opacity-50"
+          className="bg-blue-700 text-white px-5 py-3 rounded-3xl hover:bg-blue-800 transition transform hover:scale-105 disabled:opacity-50"
         >
           {loading ? "Buscando..." : "Buscar"}
         </button>
       </form>
 
       {/* REMAINING */}
-      {remaining !== null && (
-        <div className="mb-8 w-full flex justify-center">
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-300 text-blue-800 px-6 py-4 rounded-2xl shadow-md text-center max-w-md">
+      {!isPro && !isAdmin && remaining !== null && (
+        <div className="mb-8 w-full flex justify-center animate-fadeIn delay-600">
+          <div className="bg-white border border-blue-300 text-blue-800 px-6 py-4 rounded-3xl shadow-lg text-center max-w-md transition transform hover:scale-105">
             <p className="text-base font-semibold flex items-center justify-center gap-2">
               <span className="text-2xl">🔎</span>
               <span>
                 Você ainda tem{" "}
-                <span className="font-extrabold text-blue-700">
-                  {isPro ? "∞" : remaining}
-                </span>{" "}
+                <span className="font-extrabold text-blue-700">{remaining}</span>{" "}
                 de <span className="font-bold">3 buscas grátis</span>.
               </span>
             </p>
-            {!isPro && (
-              <p className="text-sm text-blue-600 mt-1">
-                Aproveite bem! Cada busca revela os vídeos mais virais do seu nicho. 💡
-              </p>
-            )}
+            <p className="text-sm text-blue-600 mt-1">
+              Aproveite bem! Cada busca revela os vídeos mais virais do seu nicho. 💡
+            </p>
           </div>
         </div>
       )}
 
       {/* VIDEOS */}
       <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-6xl">
+        {loading &&
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="animate-pulse bg-white rounded-3xl h-64 shadow-lg" />
+          ))}
         {videos.length === 0 && !loading && (
-          <p className="text-gray-500 text-center col-span-full">🔍 Busque um nicho para ver os vídeos virais!</p>
+          <p className="text-gray-500 text-center col-span-full animate-fadeIn">
+            🔍 Busque um nicho para ver os vídeos virais!
+          </p>
         )}
         {videos.map((video, index) => (
           <div
             key={index}
             onClick={() => setSelectedVideo(video)}
-            className="bg-white rounded-2xl shadow-md hover:shadow-xl cursor-pointer transition overflow-hidden flex flex-col"
+            className="bg-white rounded-3xl shadow-lg hover:shadow-2xl cursor-pointer transition transform hover:scale-105 overflow-hidden flex flex-col animate-fadeIn"
           >
             <div className="relative w-full h-48">
               <Image src={video.thumbnail} alt={video.title} fill className="object-cover" />
@@ -188,8 +223,11 @@ export default function Home() {
       {/* MODAL DE VÍDEO */}
       {selectedVideo && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 relative shadow-2xl overflow-y-auto max-h-[90vh]">
-            <button onClick={closeModal} className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl transition">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 relative shadow-2xl overflow-y-auto max-h-[90vh] animate-fadeIn">
+            <button
+              onClick={closeModal}
+              className="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl transition"
+            >
               ✕
             </button>
             <h2 className="text-2xl font-bold mb-4">{selectedVideo.title}</h2>
@@ -201,7 +239,7 @@ export default function Home() {
                   title={selectedVideo.title}
                   className="absolute top-0 left-0 w-full h-full rounded-xl"
                   allowFullScreen
-                ></iframe>
+                />
               </div>
             ) : (
               <div className="relative w-full h-64 mb-4">
@@ -216,14 +254,24 @@ export default function Home() {
             </div>
 
             <button
-              onClick={generateScript}
+              onClick={() => {
+                if (!isPro && !isAdmin) {
+                  setShowUpgrade(true);
+                  return;
+                }
+                generateScript();
+              }}
               disabled={generating}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 rounded-2xl hover:from-blue-700 hover:to-blue-600 transition disabled:opacity-50"
+              className="w-full bg-blue-700 text-white py-3 rounded-3xl hover:bg-blue-800 transition transform hover:scale-105 disabled:opacity-50"
             >
               {generating ? "Gerando roteiro..." : "✨ Melhorar esse vídeo"}
             </button>
 
-            {script && <div className="mt-4 bg-gray-50 rounded-2xl p-4 text-sm text-gray-800 whitespace-pre-line">{script}</div>}
+            {script && (
+              <div className="mt-4 bg-gray-50 rounded-3xl p-4 text-sm text-gray-800 whitespace-pre-line">
+                {script}
+              </div>
+            )}
           </div>
         </div>
       )}
